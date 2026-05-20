@@ -1,0 +1,52 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tokenrazor"
+version = "0.1.0"
+description = "应用层 LLM CoT 逻辑剪枝工具 — 脱水不脱脑"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.9"
+
+authors = [
+    {name = "Kevin Liu", email = "kevin@kevinkathy.com"},
+]
+
+dependencies = [
+    "click>=8.0",
+    "tiktoken>=0.5.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "black>=23.0",
+    "ruff>=0.1.0",
+    "mypy>=1.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/liuchunwei/tokenrazor"
+Repository = "https://github.com/liuchunwei/tokenrazor"
+Documentation = "https://github.com/liuchunwei/tokenrazor#readme"
+
+[project.scripts]
+tokenrazor = "tokenrazor.cli:main"
+
+[tool.setuptools]
+packages = ["tokenrazor", "tokenrazor.core", "tokenrazor.strategies", "tokenrazor.utils"]
+
+[tool.black]
+line-length = 100
+target-version = ["py39"]
+
+[tool.ruff]
+line-length = 100
+select = ["E", "F", "W", "I"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
