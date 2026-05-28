@@ -24,3 +24,5 @@ Thumbs.db
 .env
 .venv/
 venv/
+rust/target/
+!rust/Cargo.lock
