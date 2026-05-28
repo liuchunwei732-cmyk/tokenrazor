@@ -19,6 +19,7 @@ mod pruner;
 mod reporter;
 mod filter;
 mod context;
+mod toolchain;
 
 use pruner::Pruner;
 
@@ -179,8 +180,9 @@ fn cmd_filter(file: Option<String>, text: Option<String>) {
         }
     };
 
-    let result = filter::filter_log(&content);
-    println!("{}", result.filtered);
+    let lines: Vec<&str> = content.lines().collect();
+    let filtered = toolchain::apply_toolchain_rules(&lines);
+    println!("{}", filtered.join("\n"));
 }
 
 fn cmd_demo(model: &str) {
