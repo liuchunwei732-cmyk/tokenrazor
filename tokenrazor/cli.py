@@ -22,7 +22,7 @@ from .utils.tokenizer import count_tokens
 
 
 @click.group()
-@click.version_option(version="0.4.0", prog_name="tokenrazor")
+@click.version_option(version="0.5.0", prog_name="tokenrazor")
 def main():
     """🧹 TokenRazor — AI 编程的上下文智能编排层
 
