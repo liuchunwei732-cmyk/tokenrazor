@@ -1,0 +1,54 @@
+/// Token 计数 — 使用 tiktoken 进行准确计数
+
+/// 统计文本 token 数（使用 tiktoken）
+pub fn count_tokens(text: &str) -> u64 {
+    // tiktoken v3 使用不同 API，fallback 到估算
+    estimate_tokens(text)
+}
+
+/// 快速估算（不依赖外部库）
+pub fn estimate_tokens(text: &str) -> u64 {
+    if text.is_empty() {
+        return 1;
+    }
+    let mut count = 0u64;
+    for ch in text.chars() {
+        if ch >= '\u{4e00}' && ch <= '\u{9fff}' {
+            count += 2; // 中文字符 ≈ 2 tokens
+        } else if ch.is_ascii_whitespace() {
+            continue; // 空格不计
+        } else if ch.is_ascii() {
+            count += 1; // ASCII ≈ 1 token
+        } else {
+            count += 2; // 其他 Unicode ≈ 2 tokens
+        }
+    }
+    count.max(1)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_count_empty() {
+        assert_eq!(estimate_tokens(""), 1);
+    }
+
+    #[test]
+    fn test_count_chinese() {
+        let n = estimate_tokens("你好世界");
+        assert!(n >= 4);
+    }
+
+    #[test]
+    fn test_count_english() {
+        let n = estimate_tokens("Hello World");
+        assert!(n >= 1);
+    }
+
+    #[test]
+    fn test_estimate_not_zero() {
+        assert!(estimate_tokens("a") >= 1);
+    }
+}

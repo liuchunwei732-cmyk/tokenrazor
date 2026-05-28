@@ -1,0 +1,23 @@
+[package]
+name = "tokenrazor"
+version = "0.5.0"
+edition = "2021"
+description = "AI 编程的上下文智能编排层 — 剪枝 CoT、过滤终端输出、项目感知"
+authors = ["Kevin Liu <liuchunwei732@gmail.com>"]
+license = "MIT"
+repository = "https://github.com/liuchunwei732-cmyk/tokenrazor"
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+regex = "1"
+anyhow = "1"
+colored = "2"
+chrono = "0.4"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
