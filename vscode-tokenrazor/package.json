@@ -1,0 +1,86 @@
+{
+  "name": "tokenrazor",
+  "displayName": "TokenRazor",
+  "description": "🧹 剪枝 AI 输出 (CoT 脱水) — 在 VS Code 里直接省 Token",
+  "version": "0.1.0",
+  "publisher": "kevinliu",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/liuchunwei732-cmyk/tokenrazor"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "token",
+    "CoT",
+    "AI",
+    "prune",
+    "省钱"
+  ],
+  "activationEvents": [
+    "onCommand:tokenrazor.pruneSelection",
+    "onCommand:tokenrazor.pruneFile",
+    "onCommand:tokenrazor.demo"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "tokenrazor.pruneSelection",
+        "title": "TokenRazor: 剪枝选中文本 (Prune)"
+      },
+      {
+        "command": "tokenrazor.pruneFile",
+        "title": "TokenRazor: 剪枝当前文件 (Prune)"
+      },
+      {
+        "command": "tokenrazor.demo",
+        "title": "TokenRazor: 运行演示 (Demo)"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "when": "editorHasSelection",
+          "command": "tokenrazor.pruneSelection",
+          "group": "1_modification"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "tokenrazor.pruneFile",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "TokenRazor",
+      "properties": {
+        "tokenrazor.model": {
+          "type": "string",
+          "default": "gpt-4o",
+          "description": "默认模型名（用于费用估算），支持别名：deepseek-r1, claude, qwen 等"
+        },
+        "tokenrazor.strategies": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["filler", "dead_end", "parallel_enum"]
+          },
+          "default": ["filler", "dead_end", "parallel_enum"],
+          "description": "剪枝策略"
+        },
+        "tokenrazor.cliPath": {
+          "type": "string",
+          "default": "tokenrazor",
+          "description": "tokenrazor CLI 路径（默认用 PATH 中的，可指定完整路径）"
+        }
+      }
+    }
+  }
+}
