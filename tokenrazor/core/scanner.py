@@ -122,78 +122,82 @@ class Scanner:
     def _scan_parallel_enums(self, text: str) -> List[RedundancyMatch]:
         """检测平行枚举分支并标记为可折叠。
 
-        模式识别：连续的 "方法一/方案二/思路三/option 1/approach 2" 等枚举结构。
-        策略：保留最后一个枚举块（通常是被选中的方案），标记前面的为冗余。
+        按行扫描，找到连续枚举条目（至少3个条目），
+        标记前 N-1 个条目为冗余，保留最后一个（被选中的）。
+        支持多行条目（描述、优缺点等）。
         """
         lines = text.split("\n")
         matches = []
 
-        enum_block_start = -1
-        enum_block_end = -1
-        enum_count = 0
+        # 第一步：找出所有枚举头所在行
+        enum_indices = []  # list of (line_index, char_start)
         char_offset = 0
-
         for i, line in enumerate(lines):
             stripped = line.strip()
-            # 检测枚举行
-            is_enum = bool(self._enum_marker(stripped))
+            if self._enum_marker(stripped):
+                enum_indices.append((i, char_offset))
+            char_offset += len(line) + 1  # +1 for newline char
 
-            if is_enum:
-                if enum_count == 0:
-                    enum_block_start = char_offset
-                enum_count += 1
-                enum_block_end = char_offset + len(line) + 1  # +1 for newline
-            else:
-                if enum_count >= 3:
-                    # 有一个完整的枚举块（至少3个枚举项）
-                    # 标记除了最后一项以外的所有枚举项为冗余
-                    # 但更精确的做法是按行标记
-                    pass
-                enum_count = 0
+        if len(enum_indices) < 3:
+            return []
 
-            char_offset += len(line) + 1
+        # 第二步：找连续枚举序列
+        # 连续定义：相邻枚举头之间行数 <= 10（允许多行描述）
+        sequences = []  # [(start_enum_index, end_enum_index, start_char, end_char)]
+        seq_start = 0
+        for j in range(1, len(enum_indices)):
+            gap_lines = enum_indices[j][0] - enum_indices[j - 1][0]
+            if gap_lines > 10:
+                # 序列中断
+                if j - seq_start >= 3:
+                    first = enum_indices[seq_start]
+                    last = enum_indices[j - 1]
+                    sequences.append((seq_start, j - 1, first[1], last[1]))
+                seq_start = j
 
-        # 第二次扫描：找连续枚举行（至少3行）
-        text_copy = text
-        enum_pattern = re.compile(
-            r"(?:^[\s]*"
-            r"(?:方法|方案|方式|思路|途径|option|approach|method|way)"
-            r"[\s]?[一二三四五六七八九十1234567890、,]+[:：][^\n]*?\n?)"
-            r"{3,}",
-            re.IGNORECASE | re.MULTILINE,
-        )
+        # 检查最后一个序列
+        if len(enum_indices) - seq_start >= 3:
+            first = enum_indices[seq_start]
+            last = enum_indices[-1]
+            sequences.append((seq_start, len(enum_indices) - 1, first[1], last[1]))
 
-        for m in enum_pattern.finditer(text):
-            block = m.group()
-            block_lines = [l for l in block.split("\n") if l.strip()]
-            if len(block_lines) >= 3:
-                # 只保留最后一个枚举项，其余标记
-                remove_end = m.start()
-                for line_text in block_lines[:-1]:
-                    line_end = remove_end + len(line_text) + 1
-                    matches.append(RedundancyMatch(
-                        remove_end, line_end, "parallel_enum", 0.75,
-                    ))
-                    remove_end = line_end
+        # 第三步：计算每个枚举块的末尾位置
+        for seq_start_idx, seq_end_idx, start_char, _ in sequences:
+            last_block_start = enum_indices[seq_end_idx][1]
+            last_block_end = (
+                enum_indices[seq_end_idx + 1][1] if seq_end_idx + 1 < len(enum_indices)
+                else len(text)
+            )
+
+            # 标记前 N-1 个枚举块为冗余
+            for k in range(seq_start_idx, seq_end_idx):
+                block_start = enum_indices[k][1]
+                block_end = enum_indices[k + 1][1] if k + 1 < len(enum_indices) else len(text)
+                matches.append(RedundancyMatch(
+                    block_start, block_end - 1, "parallel_enum", 0.75,
+                ))
 
         return matches
 
     @staticmethod
     def _enum_marker(line: str) -> bool:
-        """判断一行是否为枚举标记。"""
-        return bool(
-            re.search(
-                r"(?i)^[\s]*"
-                r"(?:"
-                r"(?:方法|方案|方式|思路|途径|option|approach|method|way)"
-                r"[\s]?[一二三四五六七八九十1234567890、,]+[:：]"
-                r"(?:.*)"
-                r")",
-                line,
-            )
-            or re.search(r"^(?:第一|第二|第三|第四|首先|其次|再次|最后)[，,、]?", line)
-            or re.search(r"^[一二三四五六七八九十]+\.?[、.]", line)
-        )
+        """判断一行是否包含枚举标记。"""
+        # 匹配 "方案一/方法二/option 1" 等（允许在行内任意位置）
+        if re.search(
+            r"(?i)(?:"
+            r"(?:方法|方案|方式|思路|途径|option|approach|method|way)"
+            r"[\s]?[一二三四五六七八九十1234567890、,]+[:：]"
+            r")",
+            line,
+        ):
+            return True
+        # 匹配 "第一，/第二、/第三、" 等（仅行首）
+        if re.search(r"^(?:第一|第二|第三|第四)[，,、]", line):
+            return True
+        # 匹配 "1. 2. 3." 等（仅行首，且后面有空格和中文描述）
+        if re.search(r"^[1234567890]+\.\s+[\u4e00-\u9fff]", line):
+            return True
+        return False
 
     def _deduplicate(self, matches: List[RedundancyMatch]) -> List[RedundancyMatch]:
         """合并/去重重叠区间。"""

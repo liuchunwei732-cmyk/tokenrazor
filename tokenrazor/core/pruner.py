@@ -48,7 +48,7 @@ class Pruner:
 
     def __init__(self, strategies: Optional[List[str]] = None):
         self.scanner = Scanner()
-        self.strategies = strategies or ["filler", "dead_end"]
+        self.strategies = strategies or ["filler", "dead_end", "parallel_enum"]
 
     def prune(self, text: str, strict: bool = True) -> PruneResult:
         """对 LLM 输出执行剪枝。

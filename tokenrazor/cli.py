@@ -15,14 +15,14 @@ from typing import Optional
 
 import click
 
-from .core import Pruner, Report
+from .core import Pruner, Report, cost_report, format_cost
 from .input_filter import TerminalFilter
 from .context import ProjectContext, detect_project
 from .utils.tokenizer import count_tokens
 
 
 @click.group()
-@click.version_option(version="0.2.0", prog_name="tokenrazor")
+@click.version_option(version="0.4.0", prog_name="tokenrazor")
 def main():
     """🧹 TokenRazor — AI 编程的上下文智能编排层
 
@@ -292,5 +292,173 @@ def _output_result(result, json_output: bool, output: Optional[str], diff: bool,
         click.echo(output_str)
 
 
-if __name__ == "__main__":
-    main()
+# ============================================================
+# demo — 内置演示
+# ============================================================
+
+@main.command()
+@click.option("--model", default="gpt-4o", help="模型名（用于费用估算）")
+def demo(model):
+    """运行内置演示，展示 TokenRazor 的实际节省效果。"""
+    # 模拟 DeepSeek R1 / Claude 的 verbose CoT 输出
+    demo_text = """好的，我来分析这个需求并给出实现方案。
+
+首先让我想想这个功能的核心逻辑是什么。
+ok，这个功能需要处理用户上传的 CSV 文件，解析后存入数据库。
+
+让我再梳理一下数据流向。
+嗯，用户上传 → 文件校验 → 格式转换 → 数据清洗 → 批量插入 → 结果返回。
+
+好的，现在我来考虑实现细节。首先考虑方案一。
+
+方案一：同步处理。
+用户上传后等待处理完成。
+优点：实现简单，逻辑清晰。
+缺点：大文件会阻塞请求。耗时较长。
+
+好的，再来看方案二：异步处理。
+上传后立即返回，后台 Task 处理。
+优点：用户体验好，支持大文件。
+等等，缺点呢？需要消息队列，实现复杂。
+
+现在考虑方案三：混合方案。
+小文件同步，大文件异步。
+优点：兼顾简单和体验。
+等等让我想想阈值怎么定。嗯，10MB 作为分界比较合理。
+
+让我总结对比一下三个方案。
+方案一最简单但阻塞，方案二体验好但复杂，方案三平衡了二者。
+好的我选择方案三作为最终方案，因为它平衡了实现成本和用户体验。
+
+让我再想想有没有遗漏的边界情况。
+嗯，如果是空文件怎么办？需要校验。
+如果 CSV 格式不对呢？需要友好提示。
+如果数据库连接失败呢？需要重试机制。等等，重试几次合适？3 次吧。
+
+好的，这些边界都考虑到了。
+
+现在我来实现代码。
+先定义文件处理函数，明确输入输出。
+然后写上传接口，处理多文件并发。
+最后加测试，覆盖边界情况。
+
+等等让我再确认一下库的选择，
+使用 Pandas 处理 CSV，
+使用 Celery 进行异步处理。
+好了开始写代码。
+"""
+
+    click.echo()
+    click.echo("╔══════════════════════════════════════════════════╗")
+    click.echo("║       TokenRazor 实时演示                      ║")
+    click.echo("║       模拟 Cursor/Claude Code 真实对话场景      ║")
+    click.echo("╚══════════════════════════════════════════════════╝")
+    click.echo()
+
+    # 展示原始文本（摘要）
+    click.echo("📥 原始 AI 输出（截取前 200 字）：")
+    click.echo("─" * 50)
+    click.echo(demo_text[:200] + "...")
+    click.echo()
+
+    # 执行剪枝
+    pruner = Pruner()
+    result = pruner.prune(demo_text, strict=True)
+
+    # 展示结果
+    click.echo("📤 剪枝后输出：")
+    click.echo("─" * 50)
+    click.echo(result.pruned[:300])
+    click.echo()
+
+    # 展示统计
+    stats = result.stats
+    cost = cost_report(stats["original_tokens"], stats["pruned_tokens"], model=model)
+
+    click.echo("═" * 50)
+    click.echo(f"  📊 本次演示统计")
+    click.echo(f"  {'原始 Token':>20}: {stats['original_tokens']}")
+    click.echo(f"  {'剪后 Token':>20}: {stats['pruned_tokens']}")
+    click.echo(f"  {'节约 Token':>20}: {stats['saved_tokens']}")
+    click.echo(f"  {'压缩率':>20}: {stats['saved_percent']}%")
+    click.echo(f"  {'本次节省费用':>20}: {format_cost(cost['saved_cost'])}")
+    click.echo(f"  {'移除冗余段':>20}: {len(result.removed_spans)} 处")
+    click.echo("═" * 50)
+    click.echo()
+    click.echo("💡 用法: command | tokenrazor prune --model gpt-4o")
+    click.echo()
+
+
+# ============================================================
+# integrate — 生成集成脚本
+# ============================================================
+
+INTEGRATE_SH = r'''# ═══════════════════════════════════════════════════
+# TokenRazor 日常使用集成脚本
+# 来源: tokenrazor integrate
+# 用法: source ~/.tokenrazor.sh
+# ═══════════════════════════════════════════════════
+
+alias rzprune="tokenrazor prune"
+alias rzfilter="tokenrazor filter"
+alias rztokens="tokenrazor tokens"
+alias rzdemo="tokenrazor demo"
+
+# 管道剪枝: pipe AI output through TokenRazor
+# 用法: ai_command | rzp
+# 例如: cat ai_output.txt | rzp
+alias rzp="tokenrazor prune --model gpt-4o"
+
+# 管道过滤: pipe terminal output through TokenRazor
+# 用法: make 2>&1 | rzf
+alias rzf="tokenrazor filter"
+
+# 带统计的过滤
+# 用法: npm run build 2>&1 | rzfs
+alias rzfs="tokenrazor filter --stats"
+
+# 打印统计摘要
+# 用法: cat file.txt | rzs
+alias rzs="tokenrazor tokens"
+
+# ═══════════════════════════════════════════════════
+# 高级用法: 结合模型参数
+# ═══════════════════════════════════════════════════
+
+# 按 DeepSeek R1 定价统计
+# 用法: ai_output | rzp-r1
+alias rzp-r1="tokenrazor prune --model deepseek-r1"
+
+# 按 Claude Sonnet 定价统计
+# 用法: ai_output | rzp-claude
+alias rzp-claude="tokenrazor prune --model claude-3.5-sonnet"
+'''
+
+
+@main.command()
+@click.option("--shell", type=click.Choice(["bash", "zsh"]), default="bash",
+              help="Shell 类型")
+@click.option("-o", "--output", type=click.Path(),
+              help="输出到文件（默认打印到终端）")
+def integrate(shell, output):
+    """生成 shell 集成脚本，方便日常使用。
+
+    输出一组 alias，让 TokenRazor 可以直接在终端里管道使用。
+    推荐: tokenrazor integrate -o ~/.tokenrazor.sh
+          然后 echo 'source ~/.tokenrazor.sh' >> ~/.zshrc
+    """
+    content = INTEGRATE_SH
+
+    if output:
+        with open(output, "w", encoding="utf-8") as f:
+            f.write(content)
+        click.echo(f"集成脚本已写入: {output}")
+        click.echo(f"请执行: source {output}")
+        click.echo(f"或添加到 shell 配置: echo 'source {output}' >> ~/.zshrc")
+    else:
+        click.echo(content)
+        click.echo()
+        click.echo("─" * 50)
+        click.echo("保存到文件后 source 即可使用:")
+        click.echo("  tokenrazor integrate -o ~/.tokenrazor.sh")
+        click.echo("  source ~/.tokenrazor.sh")

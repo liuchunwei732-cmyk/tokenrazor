@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tokenrazor"
-version = "0.3.0"
+version = "0.4.0"
 description = "AI 编程的上下文智能编排层 — 不只省 Token，更让 AI 看懂你的项目"
 readme = "README.md"
 license = {text = "MIT"}
