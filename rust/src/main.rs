@@ -18,6 +18,7 @@ mod scanner;
 mod pruner;
 mod reporter;
 mod filter;
+mod context;
 
 use pruner::Pruner;
 
@@ -90,6 +91,33 @@ enum Commands {
         /// JSON 格式输出
         #[arg(long)]
         json: bool,
+    },
+
+    /// 扫描项目，检测类型和框架
+    Scan {
+        /// 项目目录
+        dir: Option<String>,
+
+        /// JSON 格式输出
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// 生成项目快照
+    Snapshot {
+        /// 项目目录
+        dir: Option<String>,
+
+        /// 最大目录深度
+        #[arg(long, default_value = "3")]
+        max_depth: usize,
+    },
+
+    /// 生成 shell 集成脚本
+    Integrate {
+        /// 输出到文件
+        #[arg(short = 'o', long)]
+        output: Option<String>,
     },
 }
 
@@ -284,6 +312,59 @@ fn main() {
         }
         Commands::Models { json } => {
             cmd_models(json);
+        }
+        Commands::Scan { dir, json } => {
+            let dir = dir.unwrap_or_else(|| ".".to_string());
+            let ctx = context::detect_project(&dir);
+            if json {
+                println!("{}", serde_json::to_string_pretty(&ctx).unwrap());
+            } else {
+                println!("📁 项目扫描: {}", std::path::Path::new(&dir).file_name().unwrap().to_string_lossy());
+                println!();
+                println!("  类型:     {}", ctx.project_type);
+                println!("  框架:     {}", ctx.framework);
+                println!("  构建工具: {}", ctx.build_tool);
+                println!("  语言:     {}", ctx.language);
+            }
+        }
+        Commands::Snapshot { dir, max_depth } => {
+            let dir = dir.unwrap_or_else(|| ".".to_string());
+            let snapshot = context::generate_snapshot(&dir, max_depth);
+            println!("{}", snapshot);
+        }
+        Commands::Integrate { output } => {
+            let script = r##"# ═══════════════════════════════════════════════════
+# TokenRazor 日常使用集成脚本
+# 用法: source ~/.tokenrazor.sh
+# ═══════════════════════════════════════════════════
+
+alias rzprune="tokenrazor prune"
+alias rzfilter="tokenrazor filter"
+alias rztokens="tokenrazor tokens"
+alias rzdemo="tokenrazor demo"
+
+# 管道剪枝
+alias rzp="tokenrazor prune --model gpt-4o"
+alias rzf="tokenrazor filter"
+alias rzs="tokenrazor tokens"
+
+# 指定模型
+alias rzp-r1="tokenrazor prune --model deepseek-r1"
+alias rzp-claude="tokenrazor prune --model claude-3.5-sonnet"
+alias rzp-qwen="tokenrazor prune --model qwen-max"
+"##;
+            if let Some(path) = output {
+                std::fs::write(&path, script)
+                    .unwrap_or_else(|e| eprintln!("写入失败: {}", e));
+                println!("集成脚本已写入: {}", path);
+                println!("请执行: source {}", path);
+            } else {
+                println!("{}", script);
+                println!("{}", "─".repeat(50));
+                println!("保存到文件后 source 即可使用:");
+                println!("  tokenrazor integrate -o ~/.tokenrazor.sh");
+                println!("  source ~/.tokenrazor.sh");
+            }
         }
     }
 }
