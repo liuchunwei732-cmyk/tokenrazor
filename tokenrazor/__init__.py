@@ -10,7 +10,7 @@
     detect_project  — 便捷项目检测
 """
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 __author__ = "Kevin Liu"
 
 from .core import Pruner, Report, split_cot_answer

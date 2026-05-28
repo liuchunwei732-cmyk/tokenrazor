@@ -360,6 +360,106 @@ KUBECTL_CONFIG.add_rule(ToolchainRule(
 ))
 
 # ============================================================
+# 中文生态：国内镜像 & 脚手架
+# ============================================================
+
+CNPM_CONFIG = ToolchainConfig(
+    name="cnpm",
+    display_name="cnpm (淘宝镜像)",
+    version_commands=["cnpm --version"],
+    error_markers=["ERR!", "error", "Error"],
+)
+CNPM_CONFIG.add_rule(ToolchainRule(
+    "cnpm_error", [re.compile(r"cnpm ERR!|npminstall ERR!", re.IGNORECASE)],
+    "keep", priority=100,
+))
+CNPM_CONFIG.add_rule(ToolchainRule(
+    "cnpm_warn", [re.compile(r"cnpm WARN", re.IGNORECASE)],
+    "fold", priority=50,
+))
+CNPM_CONFIG.add_rule(ToolchainRule(
+    "cnpm_install", [
+        re.compile(r"Installed\s+\d+\s+modules"),
+        re.compile(r"All\.")
+    ], "fold", priority=50,
+))
+
+# 国内镜像站检测（跨工具链）
+MIRROR_PATTERNS = [
+    re.compile(r"registry\.npmmirror\.com"),
+    re.compile(r"mirrors\.(aliyun|tencent|huawei|tuna|ustc)\."),
+    re.compile(r"pypi\.tuna\.tsinghua\.edu\.cn"),
+    re.compile(r"mirrors\.cloud\.tencent\.com"),
+    re.compile(r"repo\.huaweicloud\.com"),
+    re.compile(r"npm\.taobao\.org"),
+]
+MIRROR_CONFIG = ToolchainConfig(
+    name="mirror",
+    display_name="国内镜像",
+    version_commands=[],
+    error_markers=[],
+)
+MIRROR_CONFIG.add_rule(ToolchainRule(
+    "mirror_download", MIRROR_PATTERNS,
+    "fold", priority=50, description="国内镜像下载日志",
+))
+
+# 中文脚手架：uni-app / Taro / ice.js / umi.js / remax
+CNUI_CONFIG = ToolchainConfig(
+    name="cn-ui",
+    display_name="中文脚手架 (uni-app/Taro/Umi)",
+    version_commands=[],
+    error_markers=["Error", "error", "失败", "错误"],
+)
+CNUI_CONFIG.add_rule(ToolchainRule(
+    "cnui_error", [
+        re.compile(r"(uni-app|taro|umi|ice\.js|remax)", re.IGNORECASE),
+        re.compile(r"[错误失败]", re.IGNORECASE),
+    ], "keep", priority=100,
+))
+CNUI_CONFIG.add_rule(ToolchainRule(
+    "cnui_build", [
+        re.compile(r"(构建|编译|打包)成功"),
+        re.compile(r"compiled successfully", re.IGNORECASE),
+        re.compile(r"build complete", re.IGNORECASE),
+    ], "fold", priority=60,
+))
+CNUI_CONFIG.add_rule(ToolchainRule(
+    "cnui_warn", [
+        re.compile(r"(警告|warn|deprecated)", re.IGNORECASE),
+    ], "fold", priority=50,
+))
+
+# 中文 pip（清华/阿里/腾讯源）
+PIP_CONFIG = ToolchainConfig(
+    name="pip",
+    display_name="pip (Python包管理)",
+    version_commands=["pip --version"],
+    error_markers=["ERROR", "error", "Could not"],
+)
+PIP_CONFIG.add_rule(ToolchainRule(
+    "pip_error", [
+        re.compile(r"ERROR:", re.IGNORECASE),
+        re.compile(r"Could not (find|install|resolve)", re.IGNORECASE),
+    ], "keep", priority=100,
+))
+PIP_CONFIG.add_rule(ToolchainRule(
+    "pip_install", [
+        re.compile(r"Collecting"),
+        re.compile(r"Downloading"),
+        re.compile(r"Installing collected packages"),
+        re.compile(r"Successfully installed"),
+        re.compile(r"Requirement already satisfied"),
+    ], "fold", priority=50,
+))
+PIP_CONFIG.add_rule(ToolchainRule(
+    "pip_cache", [
+        re.compile(r"Using cached"),
+        re.compile(r"Using legacy"),
+    ], "strip", priority=40,
+))
+
+# ============================================================
 # 全栈注册表
 # ============================================================
 
@@ -375,11 +475,18 @@ ALL_TOOLCHAINS: Dict[str, ToolchainConfig] = {
     "flutter": FLUTTER_CONFIG,
     "docker": DOCKER_CONFIG,
     "kubectl": KUBECTL_CONFIG,
+    "cnpm": CNPM_CONFIG,
+    "mirror": MIRROR_CONFIG,
+    "cn-ui": CNUI_CONFIG,
+    "pip": PIP_CONFIG,
 }
 
 # 工具链别名映射
 TOOLCHAIN_ALIASES: Dict[str, str] = {
     "pnpm": "npm",
+    "cnpm": "cnpm",
+    "npmmirror": "cnpm",
+    "tnpm": "cnpm",
     "yarnpkg": "yarn",
     "vue-cli": "vite",
     "vue": "vite",

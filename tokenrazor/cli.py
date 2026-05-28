@@ -45,14 +45,16 @@ def main():
 @click.argument("text_file", type=click.Path(exists=True), required=False)
 @click.option("-t", "--text", help="直接传入文本")
 @click.option("-s", "--strategy", multiple=True,
-              type=click.Choice(["filler", "dead_end"]),
-              default=["filler", "dead_end"],
+              type=click.Choice(["filler", "dead_end", "parallel_enum"]),
+              default=["filler", "dead_end", "parallel_enum"],
               help="剪枝策略（可多次指定）")
+@click.option("--model", default="gpt-4o",
+              help="模型名（用于费用估算，默认 gpt-4o）")
 @click.option("--no-strict", is_flag=True, help="关闭严格验证模式")
 @click.option("--diff", is_flag=True, help="显示剪枝前后对比")
 @click.option("--json", "json_output", is_flag=True, help="JSON 格式输出")
 @click.option("-o", "--output", type=click.Path(), help="输出到文件")
-def prune(text_file, text, strategy, no_strict, diff, json_output, output):
+def prune(text_file, text, strategy, model, no_strict, diff, json_output, output):
     """对 LLM 输出执行 CoT 剪枝。
 
     从文件或 --text 参数读取 LLM 原始输出，自动识别 CoT 区域，
@@ -65,7 +67,7 @@ def prune(text_file, text, strategy, no_strict, diff, json_output, output):
     pruner = Pruner(strategies=list(strategy))
     result = pruner.prune(content, strict=not no_strict)
 
-    _output_result(result, json_output, output, diff)
+    _output_result(result, json_output, output, diff, model=model)
 
 
 # ============================================================
@@ -269,13 +271,14 @@ def _read_input(text_file: Optional[str], text: Optional[str]) -> Optional[str]:
     return content
 
 
-def _output_result(result, json_output: bool, output: Optional[str], diff: bool):
+def _output_result(result, json_output: bool, output: Optional[str], diff: bool,
+                     model: Optional[str] = None):
     """输出剪枝结果。"""
     if json_output:
-        output_data = Report.json(result)
+        output_data = Report.json(result, model=model)
         output_str = json.dumps(output_data, ensure_ascii=False, indent=2)
     else:
-        output_str = Report.text(result, show_diff=diff)
+        output_str = Report.text(result, show_diff=diff, model=model)
         output_str += "\n"
         output_str += "─" * 50
         output_str += "\n"

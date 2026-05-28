@@ -75,11 +75,8 @@ class Pruner:
         # 2. 去除 CoT 标记标签，保留内容
         cot_clean = strip_cot_markers(cot)
 
-        # 3. 扫描冗余
-        matches = self.scanner.scan_all(cot_clean)
-
-        # 4. 按策略过滤
-        matches = [m for m in matches if m.reason.split("+")[0] in self.strategies]
+        # 3. 扫描冗余（按策略过滤）
+        matches = self.scanner.scan_all(cot_clean, strategies=self.strategies)
 
         if not matches:
             return PruneResult(
