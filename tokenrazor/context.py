@@ -225,10 +225,42 @@ class ProjectContext:
 def detect_project(root: str = ".") -> ProjectContext:
     """便捷函数：检测项目。
 
-    安全保护：跳过 NAS 和网络文件系统，避免 rglob 卡死。
+    安全保护：在 NAS 上使用浅层检测（仅检查根目录文件），避免 rglob 卡死。
+    本地文件系统使用完整检测。
     """
     root_path = Path(root).resolve()
-    # 跳过 NAS 卷
-    if str(root_path).startswith("/Volumes/"):
-        return ProjectContext(root=str(root_path), project_type="unknown", language="unknown")
-    return ProjectContext.detect(root)
+
+    # 非 NAS：使用完整检测（保留原有精确逻辑）
+    if not str(root_path).startswith("/Volumes/"):
+        try:
+            return ProjectContext.detect(root)
+        except Exception:
+            pass
+
+    # NAS 或检测失败：浅层检测（仅检查根目录特征文件）
+    ctx = ProjectContext(root=str(root_path))
+    shallow_rules = [
+        ("package.json", "frontend", "unknown", "npm", "javascript"),
+        ("pubspec.yaml", "mobile", "flutter", "pub", "dart"),
+        ("pom.xml", "backend", "unknown", "maven", "java"),
+        ("build.gradle", "backend", "unknown", "gradle", "java"),
+        ("go.mod", "backend", "unknown", "go", "go"),
+        ("Cargo.toml", "backend", "unknown", "cargo", "rust"),
+        ("requirements.txt", "data", "unknown", "pip", "python"),
+        ("pyproject.toml", "data", "unknown", "pip", "python"),
+        ("Dockerfile", "devops", "unknown", "docker", "unknown"),
+        ("docker-compose.yml", "devops", "unknown", "docker", "unknown"),
+        ("Makefile", "unknown", "unknown", "make", "unknown"),
+    ]
+
+    for filename, ptype, framework, build_tool, lang in shallow_rules:
+        if (root_path / filename).exists():
+            ctx.project_type = ptype
+            ctx.framework = framework
+            ctx.build_tool = build_tool
+            ctx.language = lang
+            ctx.features = [filename]
+            ctx._apply_recommended_rules()
+            return ctx
+
+    return ctx

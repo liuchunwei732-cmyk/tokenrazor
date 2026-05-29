@@ -475,6 +475,94 @@ def integrate(shell, output):
 
 
 # ============================================================
+# config — 配置管理
+# ============================================================
+
+@main.command(name="config")
+@click.option("--init", "init_config", is_flag=True, help="生成配置文件模板")
+@click.option("--show", "show_config", is_flag=True, help="显示当前生效配置")
+@click.option("-o", "--output", type=click.Path(), help="输出到文件（配合 --init）")
+def config_command(init_config, show_config, output):
+    """配置管理。生成配置模板或查看当前配置。"""
+    from .config import generate_default_config, load_config, find_project_config, USER_CONFIG_PATH
+
+    if init_config:
+        content = generate_default_config()
+        if output:
+            with open(output, "w", encoding="utf-8") as f:
+                f.write(content)
+            click.echo(f"配置模板已写入: {output}")
+            click.echo(f"将其移动到项目根目录: mv {output} .tokenrazor.yaml")
+        else:
+            click.echo(content)
+        return
+
+    if show_config:
+        config = load_config(".")
+        project_cfg = find_project_config(".")
+        user_cfg = USER_CONFIG_PATH if USER_CONFIG_PATH.is_file() else None
+
+        lines = [
+            "📋 TokenRazor 配置状态",
+            "",
+            f"  用户配置: {user_cfg or '(未找到)'}",
+            f"  项目配置: {project_cfg or '(未找到)'}",
+            "",
+            f"  当前生效配置:",
+            f"    剪枝模型:     {config.prune.model}",
+            f"    剪枝策略:     {', '.join(config.prune.strategies)}",
+            f"    严格模式:     {'开启' if config.prune.strict else '关闭'}",
+            f"    默认评分:     {'开启' if config.prune.score else '关闭'}",
+            f"    过滤工具链:   {config.filter.toolchain or '自动检测'}",
+            f"    过滤统计:     {'开启' if config.filter.stats else '关闭'}",
+        ]
+        click.echo("\n".join(lines))
+        return
+
+    # 默认：显示帮助
+    click.echo("TokenRazor 配置管理")
+    click.echo("")
+    click.echo("  tokenrazor config --init       生成配置模板")
+    click.echo("  tokenrazor config --show       查看当前配置")
+    click.echo("  tokenrazor config --init -o .  生成到当前目录")
+
+
+# ============================================================
+# hook — Pre-commit hook 安装
+# ============================================================
+
+@main.command(name="hook")
+@click.option("--install", "do_install", is_flag=True, help="安装 pre-commit hook")
+@click.option("--config", "show_config", is_flag=True, help="生成 pre-commit 配置片段")
+@click.option("--path", "target_dir", default=".", help="安装到的 git 仓库路径")
+def hook_command(do_install, show_config, target_dir):
+    """管理 pre-commit hook，自动剪枝 AI 生成的代码。"""
+    from .hook import generate_pre_commit_config, install_hook
+
+    if show_config:
+        click.echo(generate_pre_commit_config())
+        return
+
+    if do_install:
+        try:
+            path = install_hook(target_dir)
+            click.echo(f"✅ TokenRazor pre-commit hook 已安装: {path}")
+            click.echo(f"   下次 git commit 时自动运行")
+        except Exception as e:
+            click.echo(f"❌ 安装失败: {e}", err=True)
+        return
+
+    click.echo("TokenRazor Pre-commit Hook")
+    click.echo("")
+    click.echo("  tokenrazor hook --install        安装 hook 到当前仓库")
+    click.echo("  tokenrazor hook --config         生成 pre-commit 配置片段")
+    click.echo("")
+    click.echo("  快速安装:")
+    click.echo("    tokenrazor hook --install")
+    click.echo("    git commit -m 'your message'  # 自动剪枝检查")
+
+
+# ============================================================
 # 主入口
 # ============================================================
 
