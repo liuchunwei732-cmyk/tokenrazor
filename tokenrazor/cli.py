@@ -51,10 +51,11 @@ def main():
 @click.option("--model", default="gpt-4o",
               help="模型名（用于费用估算，默认 gpt-4o）")
 @click.option("--no-strict", is_flag=True, help="关闭严格验证模式")
+@click.option("--score", is_flag=True, help="显示质量评估分数")
 @click.option("--diff", is_flag=True, help="显示剪枝前后对比")
 @click.option("--json", "json_output", is_flag=True, help="JSON 格式输出")
 @click.option("-o", "--output", type=click.Path(), help="输出到文件")
-def prune(text_file, text, strategy, model, no_strict, diff, json_output, output):
+def prune(text_file, text, strategy, model, no_strict, score, diff, json_output, output):
     """对 LLM 输出执行 CoT 剪枝。
 
     从文件或 --text 参数读取 LLM 原始输出，自动识别 CoT 区域，
@@ -67,7 +68,7 @@ def prune(text_file, text, strategy, model, no_strict, diff, json_output, output
     pruner = Pruner(strategies=list(strategy))
     result = pruner.prune(content, strict=not no_strict)
 
-    _output_result(result, json_output, output, diff, model=model)
+    _output_result(result, json_output, output, diff, model=model, score=score)
 
 
 # ============================================================
@@ -272,13 +273,22 @@ def _read_input(text_file: Optional[str], text: Optional[str]) -> Optional[str]:
 
 
 def _output_result(result, json_output: bool, output: Optional[str], diff: bool,
-                     model: Optional[str] = None):
+                     model: Optional[str] = None, score: bool = False):
     """输出剪枝结果。"""
+    if score:
+        from .core.quality import QualityEvaluator
+        evaluator = QualityEvaluator()
+        quality = evaluator.evaluate(result)
+    else:
+        quality = None
+
     if json_output:
         output_data = Report.json(result, model=model)
+        if quality:
+            output_data["quality"] = quality.to_dict()
         output_str = json.dumps(output_data, ensure_ascii=False, indent=2)
     else:
-        output_str = Report.text(result, show_diff=diff, model=model)
+        output_str = Report.text(result, show_diff=diff, model=model, quality=quality)
         output_str += "\n"
         output_str += "─" * 50
         output_str += "\n"
@@ -462,3 +472,11 @@ def integrate(shell, output):
         click.echo("保存到文件后 source 即可使用:")
         click.echo("  tokenrazor integrate -o ~/.tokenrazor.sh")
         click.echo("  source ~/.tokenrazor.sh")
+
+
+# ============================================================
+# 主入口
+# ============================================================
+
+if __name__ == "__main__":
+    main()

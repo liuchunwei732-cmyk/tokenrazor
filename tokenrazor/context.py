@@ -223,5 +223,12 @@ class ProjectContext:
 
 
 def detect_project(root: str = ".") -> ProjectContext:
-    """便捷函数：检测项目。"""
+    """便捷函数：检测项目。
+
+    安全保护：跳过 NAS 和网络文件系统，避免 rglob 卡死。
+    """
+    root_path = Path(root).resolve()
+    # 跳过 NAS 卷
+    if str(root_path).startswith("/Volumes/"):
+        return ProjectContext(root=str(root_path), project_type="unknown", language="unknown")
     return ProjectContext.detect(root)

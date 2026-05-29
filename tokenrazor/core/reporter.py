@@ -13,7 +13,7 @@ class Report:
 
     @classmethod
     def text(cls, result: PruneResult, show_diff: bool = False,
-             model: Optional[str] = None) -> str:
+             model: Optional[str] = None, quality=None) -> str:
         """生成文本格式报告，包含费用节省。"""
         lines = []
         lines.append("╔════════════════════════════════════════╗")
@@ -59,6 +59,17 @@ class Report:
         else:
             lines.append("  未发现显著冗余。")
         lines.append("")
+
+        # 质量评估
+        if quality:
+            verdict_icon = {"SAFE": "✅", "CAUTION": "⚠", "RISKY": "❌"}
+            icon = verdict_icon.get(quality.verdict, "?")
+            lines.append(f"  {icon} 质量评估: {quality.score}/100 ({quality.verdict})")
+            for detail in quality.details:
+                lines.append(f"    {detail}")
+            if quality.safety_margin > 0:
+                lines.append(f"    预估安全边际: 还能再剪 {quality.safety_margin}%")
+            lines.append("")
 
         if show_diff:
             lines.append("─" * 50)

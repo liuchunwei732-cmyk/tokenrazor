@@ -74,6 +74,12 @@ cat ai_response.txt | tokenrazor prune --model claude-3.5-sonnet
 
 # With diff to see what was removed
 echo "Let me think... method A... method B... method C... I'll pick C." | tokenrazor prune --diff
+
+# With quality score to verify pruning safety
+echo "<thinking>让我想想...</thinking>最终答案：42" | tokenrazor prune --score
+
+# JSON output with quality evaluation
+cat ai_output.txt | tokenrazor prune --json --score
 ```
 
 <details>
@@ -187,6 +193,9 @@ tokenrazor demo
 # 日常剪枝 AI 输出（省 20-35%）
 cat ai_output.txt | tokenrazor prune
 
+# 带质量评分（确保剪枝没伤到答案）
+cat ai_output.txt | tokenrazor prune --score
+
 # 过滤终端日志（省 50-80%）
 npm run build 2>&1 | tokenrazor filter --stats
 
@@ -200,6 +209,7 @@ echo 'source ~/.tokenrazor.sh' >> ~/.zshrc
 | 命令 | 作用 |
 |------|------|
 | `prune` | 剪枝 AI 的思维链，去掉废话保留结论 |
+| `prune --score` | 剪枝 + 质量评分，确认没伤到答案 |
 | `filter` | 过滤终端输出，只看关键信息 |
 | `demo` | 内置演示，一秒看效果 |
 | `tokens` | 统计 Token 数 |
