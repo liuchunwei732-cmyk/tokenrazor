@@ -38,17 +38,50 @@ mod tests {
     #[test]
     fn test_count_chinese() {
         let n = estimate_tokens("你好世界");
-        assert!(n >= 4);
+        assert_eq!(n, 8); // 4 Chinese chars × 2
     }
 
     #[test]
     fn test_count_english() {
         let n = estimate_tokens("Hello World");
-        assert!(n >= 1);
+        assert_eq!(n, 10); // H,e,l,l,o,W,o,r,l,d = 10 chars (space skipped)
     }
 
     #[test]
     fn test_estimate_not_zero() {
         assert!(estimate_tokens("a") >= 1);
+    }
+
+    #[test]
+    fn test_count_mixed() {
+        let n = estimate_tokens("你好 world");
+        assert!(n > 0);
+    }
+
+    #[test]
+    fn test_count_newlines() {
+        let n = estimate_tokens("line1\nline2\nline3");
+        assert!(n > 0);
+    }
+
+    #[test]
+    fn test_count_punctuation() {
+        let n = estimate_tokens("!!!,,,???");
+        assert!(n >= 9);
+    }
+
+    #[test]
+    fn test_count_special_chars() {
+        let n = estimate_tokens("≈∞√∫");
+        // Unicode outside ASCII/CJK range
+        assert!(n >= 4);
+    }
+
+    #[test]
+    fn test_count_tokens_consistency() {
+        // count_tokens should match estimate_tokens for now
+        let e = estimate_tokens("test");
+        let c = count_tokens("test");
+        assert_eq!(c, e);
     }
 }

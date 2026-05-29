@@ -167,4 +167,22 @@ mod tests {
         assert!(bar.contains('░'));
         assert!(!bar.contains('█'));
     }
+
+    #[test]
+    fn test_text_report_no_savings() {
+        let p = Pruner::new(&["filler"]);
+        let r = p.prune("test");
+        let report = text_report(&r, "gpt-4o");
+        assert!(report.contains("未发现"));
+    }
+
+    #[test]
+    fn test_json_report_serializes() {
+        let p = Pruner::new(&["filler"]);
+        let r = p.prune("让我想想。答案：42");
+        let j = json_report(&r, "deepseek-r1");
+        let s = serde_json::to_string(&j).unwrap();
+        assert!(s.contains("compression"));
+        assert!(s.contains("cost"));
+    }
 }

@@ -178,4 +178,53 @@ mod tests {
         let r = p.prune("");
         assert_eq!(r.pruned, "");
     }
+
+    #[test]
+    fn test_prune_all_strategies() {
+        let p = Pruner::default();
+        let text = "让我想想。好的那我分析一下。方案一不行。答案：42";
+        let r = p.prune(text);
+        assert!(r.pruned.len() <= r.original.len());
+    }
+
+    #[test]
+    fn test_saved_tokens_calculation() {
+        let p = Pruner::new(&["filler"]);
+        let r = p.prune("让我想想。让我分析一下。答案：42");
+        assert_eq!(r.saved_tokens(), r.original_tokens - r.pruned_tokens);
+    }
+
+    #[test]
+    fn test_saved_percent_positive() {
+        let p = Pruner::new(&["filler"]);
+        let r = p.prune("让我想想。让我分析一下。让我思考一下。答案：42");
+        if r.saved_tokens() > 0 {
+            assert!(r.saved_percent() > 0.0);
+        }
+    }
+
+    #[test]
+    fn test_prune_parallel_enum() {
+        let p = Pruner::new(&["parallel_enum"]);
+        let text = "方案一：使用 A。方案二：使用 B。方案三：使用 C。我选择方案二。";
+        let r = p.prune(text);
+        assert!(r.pruned.contains("方案二") || r.pruned.len() <= r.original.len());
+    }
+
+    #[test]
+    fn test_prune_long_text() {
+        let p = Pruner::new(&["filler", "dead_end"]);
+        let text = "让我思考一下这个问题。\n\n首先，我们需要理解需求。\n\n其次，分析可行性。\n\n答案：使用方案A。";
+        let r = p.prune(text);
+        assert!(r.pruned.contains("答案"));
+    }
+
+    #[test]
+    fn test_split_final_answer() {
+        let p = Pruner::default();
+        let text = "思考过程内容\n\n最终答案：42";
+        let (cot, answer) = p.split_cot_answer(text);
+        assert!(cot.contains("思考过程"));
+        assert!(answer.contains("最终答案"));
+    }
 }
